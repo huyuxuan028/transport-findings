@@ -1,7 +1,4 @@
-# Updated Heterogeneous Furniture Transport Project
 
-This package supersedes the old identical-three-vehicle demonstration for the
-new brief. All reports are English and have no report preparation date.
 
 ## Three repository areas
 

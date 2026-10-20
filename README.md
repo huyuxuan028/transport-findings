@@ -17,14 +17,15 @@ research model. The supplied types have different capacities and fuel rates:
 
 These are adopted course parameters, not a new independent manufacturer audit.
 Overall length cannot be substituted for usable cargo length and top speed
-cannot be substituted for urban average speed. Listing three types does not
-specify how many physical vehicles of each type the team owns.
+cannot be substituted for urban average speed. The project uses five physical
+vehicles chosen from these three available types.
 
 ## Proposed first problem definition
 
-A static, single-depot, heterogeneous-fleet, multi-trip VRP with two additive
-capacity dimensions. Initially assume one physical vehicle of each type. It
-may make sequential trips, returning to depot between trips. Every indivisible
+A static, single-depot, five-vehicle heterogeneous-fleet, multi-trip VRP with
+two additive capacity dimensions. Each of the five slots selects one of the
+three vehicle types. Vehicles may make sequential trips, returning to depot
+between trips. Every indivisible
 customer order must be delivered once. There is no daily horizon, time window
 or geometric loading check. Orders generated over several transports are made
 available together at the start of this simplified optimization batch.
@@ -40,23 +41,28 @@ route at the same distance. Heterogeneity only creates a meaningful choice when
 operating cost, availability, deadlines or other restrictions are represented.
 Fuel is a supplied parameter, but making it the official objective still needs
 supervisor agreement. We do not add unsupported wage, price or CO2 coefficients.
+Without a shift limit or fixed vehicle costs, idle vehicles may exist and the
+chosen mix cannot be interpreted as a uniquely best operational fleet.
 
 ## Representation choice
 
-Use a customer permutation p plus a customer-indexed allocation vector a.
-Example: p=[3,1,4,2], a=[0,1,0,2]. Customers 1 and 3 use vehicle 0, customer 2
-vehicle 1, and customer 4 vehicle 2. Thus the per-vehicle visit sequences are
-[3,1], [2] and [4]. Split inserts trip boundaries under that vehicle's capacity.
+Use a customer permutation p, customer-indexed allocation a, and a five-entry
+vehicle-type vector t. Example: p=[3,1,4,2], a=[0,1,0,2],
+t=[Caddy,Sprinter,MAN,Caddy,Sprinter]. Customers 1 and 3 use vehicle 0,
+customer 2 uses vehicle 1 and customer 4 uses vehicle 2. Thus the per-vehicle
+visit sequences are [3,1], [2] and [4]. Split inserts trip boundaries under
+the selected type's capacity.
 
 This makes both order and allocation explicit, as requested. OX preserves the
 permutation; uniform allocation crossover preserves customer-indexed choices.
-Mutation changes either order or a compatible vehicle assignment. The decoder
+Mutation changes order, vehicle assignment or vehicle type and repairs incompatible
+assignments. The decoder
 does not mix up customer identity when a permutation position changes.
 
 An alternative is one giant tour with a richer decoder jointly assigning types
 and trip boundaries. It reduces chromosome redundancy but makes decoding and
 fleet/time coupling harder. Prins [R1] demonstrates that joint tour splitting
-and vehicle assignment is a serious research route. Our simpler two-array
+and vehicle assignment is a serious research route. Our simpler three-array
 approach is an implementation tradeoff, not an assertion of a new algorithm.
 
 ## Algorithm-family understanding
@@ -90,7 +96,7 @@ verified packaging records or agree a documented proxy before final benchmarking
 
 ## Decisions to confirm
 
-1. Number of physical vehicles of each type.
+1. Whether five physical vehicles may be any mix of types or existing inventory limits apply.
 2. Static batch versus genuinely dynamic order release.
 3. Fuel, distance, duration or a stated multi-objective ranking.
 4. Driver/vehicle horizon, loading time and customer time windows.

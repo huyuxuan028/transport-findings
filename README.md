@@ -1,61 +1,109 @@
-[README.md](https://github.com/user-attachments/files/33723195/README.md)
-# Updated Heterogeneous Furniture Transport Project
+# Furniture Transportation: Findings and Modelling Decisions
 
-This package supersedes the old identical-three-vehicle demonstration for the
-new brief. All reports are English and have no report preparation date.
+This repository records the problem interpretation, research, representation
+choice and open decisions. It accompanies independent generator and algorithm
+repositories. Vehicle values come directly from the instructor's message.
 
-## Three repository areas
+## What changed
 
-1. `transport-findings`: formalization, representation rationale, papers, meeting script.
-2. `transport-generator`: audited Amazon sample, normal-based transport generator, tests.
-3. `transport-algorithms`: two-array genetic algorithm, independent validator, pilot.
+The old homogeneous three-vehicle demonstration is superseded as an initial
+research model. The supplied types have different capacities and fuel rates:
 
-Each area is prepared as an independent local Git repository with a commit and
-portable Git bundle. No remote GitHub repository has been created or pushed.
-See `GITHUB_SETUP.md` for the remaining publication step.
+| Type | Overall length | Volume | Payload | Fuel L/100km | Top speed |
+| --- | --- | --- | --- | --- | --- |
+| VW Caddy Cargo SWB | 4.50 m | 3.1 m3 | 680 kg | 4.5-6.2 | 178 km/h |
+| Mercedes Sprinter 315 CDI L2H2 | 5.93 m | 10.5 m3 | 1,231 kg | 9.0-9.1 | 161 km/h |
+| MAN TGL 12.190 box | 9.20 m | 42.7 m3 | 5,480 kg | 18-24 | 90-110 km/h |
 
-## Quick start on Windows
+These are adopted course parameters, not a new independent manufacturer audit.
+Overall length cannot be substituted for usable cargo length and top speed
+cannot be substituted for urban average speed. Listing three types does not
+specify how many physical vehicles of each type the team owns.
 
-Run from the corresponding extracted directory. Python 3.10+ is sufficient for
-data processing, generating, solving and tests; no third-party packages needed.
+## Proposed first problem definition
 
-```powershell
-cd transport-generator
-python import_catalog.py data/amazon_furniture_sample.csv
-python generate.py --catalog data/catalog_proxy.json --allow-proxy --cycles 2 --seed 42 --output data/development.json
-python -m unittest -v test_generator
-```
+A static, single-depot, heterogeneous-fleet, multi-trip VRP with two additive
+capacity dimensions. Initially assume one physical vehicle of each type. It
+may make sequential trips, returning to depot between trips. Every indivisible
+customer order must be delivered once. There is no daily horizon, time window
+or geometric loading check. Orders generated over several transports are made
+available together at the start of this simplified optimization batch.
 
-```powershell
-cd ../transport-algorithms
-python solver.py
-python -m unittest -v test_solver
-python run_experiments.py
-```
+For a trip r using vehicle k, require sum(w_i)<=W_k and sum(v_i)<=V_k. The default
+proposed objective is sum_r distance(r) * fuel_rate(k)/100, with distance in km
+and fuel rate in litres/100km. Total distance is also selectable. Fuel rates are
+fixed instance inputs, so candidates are compared under the same assumptions.
 
-The algorithm repository contains a frozen copy of the development input. If you
-change generator parameters, explicitly copy the new JSON to `data/example.json`
-or pass `--instance` to the solver. This prevents silent changes to benchmark data.
-Generated JSON, observed outputs and figures are already included.
+Why propose fuel? With unlimited reuse, no deadline and distance-only cost, the
+largest vehicle dominates in capacity: it can reproduce a smaller vehicle's
+route at the same distance. Heterogeneity only creates a meaningful choice when
+operating cost, availability, deadlines or other restrictions are represented.
+Fuel is a supplied parameter, but making it the official objective still needs
+supervisor agreement. We do not add unsupported wage, price or CO2 coefficients.
 
-## Critical assumptions
+## Representation choice
 
-- One physical vehicle of each supplied type; counts need agreement.
-- Multiple sequential trips; all customer orders available at time zero.
-- Weight and aggregate volume only; no geometric loading, shifts or windows.
-- The audited dataset sample has no records meeting the strict packaging rule.
-  The runnable example explicitly enables catalog proxies, never verified boxes.
-- Default fuel objective is a proposal. It is a constant-rate estimate, not an
-  observed fuel measurement or a physical load/speed-dependent model.
-- Top speeds and overall vehicle lengths are recorded but are not average speed
-  or usable cargo-bay dimensions. Schedule speed is an explicit 35 km/h assumption.
-- No certified optimum or final GA-versus-swarm benchmark has been established.
+Use a customer permutation p plus a customer-indexed allocation vector a.
+Example: p=[3,1,4,2], a=[0,1,0,2]. Customers 1 and 3 use vehicle 0, customer 2
+vehicle 1, and customer 4 vehicle 2. Thus the per-vehicle visit sequences are
+[3,1], [2] and [4]. Split inserts trip boundaries under that vehicle's capacity.
 
-## What is complete and what is pending
+This makes both order and allocation explicit, as requested. OX preserves the
+permutation; uniform allocation crossover preserves customer-indexed choices.
+Mutation changes either order or a compatible vehicle assignment. The decoder
+does not mix up customer identity when a permutation position changes.
 
-Research, representation rationale, catalog audit, initial generator, initial GA,
-validation and reproducible pilot are complete for the stated simplified model.
-Publication to GitHub is pending repository creation/destination selection. The
-available GitHub connector can inspect or edit existing repositories but does
-not expose a new-repository operation in this session. No browser fallback or
-publication to an unrelated existing repository was performed.
+An alternative is one giant tour with a richer decoder jointly assigning types
+and trip boundaries. It reduces chromosome redundancy but makes decoding and
+fleet/time coupling harder. Prins [R1] demonstrates that joint tour splitting
+and vehicle assignment is a serious research route. Our simpler two-array
+approach is an implementation tradeoff, not an assertion of a new algorithm.
+
+## Algorithm-family understanding
+
+| Family | How it searches | Role |
+| --- | --- | --- |
+| Genetic / memetic search | Population, crossover, mutation, local improvement | Implemented initial approach |
+| ILS / variable-neighborhood search | Perturb a route plan and improve neighborhoods | Alternative heterogeneous-fleet research [R4] |
+| ALNS | Destroy and repair parts of a solution | Targeted literature extension; not implemented |
+| Swarm methods such as ACO / discrete PSO | Construct/recombine discrete routing choices through collective search | Other team's family; needs the same data and validator |
+| Exact optimization / DP | Certify optima for a specified small model or decode a fixed order | Fixed-order Split is exact; global search remains heuristic |
+
+No swarm implementation, global-optimum certificate or final winning claim is
+included. The original 96.100 km demonstration is a different instance/model
+and is not a valid reference objective for the new case.
+
+## Dataset finding
+
+The Kaggle candidate [D1] was downloaded and audited. The 312-row sample has 305
+unique ASINs. There are 193 furniture rows with parseable 3D dimensions and a
+weight after de-duplication/filtering. A strict requirement for explicit package
+dimensions AND shipping/package weight leaves zero usable rows. Source examples
+repeat Product Dimensions in the package_dimensions column; item weight may not
+be shipping weight. Therefore the initial runnable example explicitly opts into
+proxy mode and retains raw strings, source rows and exclusion reasons.
+
+This does not invalidate the instructor's suggestion. It identifies the cleaning
+and semantic checks needed before claiming actual furniture-packaging realism.
+Product sets, multiple cartons and missing fields still need handling. Obtain
+verified packaging records or agree a documented proxy before final benchmarking.
+
+## Decisions to confirm
+
+1. Number of physical vehicles of each type.
+2. Static batch versus genuinely dynamic order release.
+3. Fuel, distance, duration or a stated multi-objective ranking.
+4. Driver/vehicle horizon, loading time and customer time windows.
+5. Whether aggregate volume suffices or geometric loading is mandatory.
+6. Acceptance of audited catalog proxies versus verified package-only records.
+7. Frozen shared benchmark, seed/budget rules and the exact gap reference.
+
+## Planned next refinements
+
+Agree the above decisions; validate more catalog package records; compare different
+allocation mutation and local relocation/swap moves; introduce diversity control;
+test unseen seeds; then extend the model only as required. Add deadlines before
+interpreting schedules as feasible working days. The current example deliberately
+demonstrates a simplified initial implementation rather than every rich constraint.
+
+See `REFERENCES.md` for primary research and `MEETING_BRIEF.md` for a short script.
